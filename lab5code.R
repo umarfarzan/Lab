@@ -219,3 +219,93 @@ ggplot(as.data.frame(termSpace), aes(x = termSpace[,1], y=termSpace[,2],
   geom_text_repel(max.overlaps = 15) +
   labs(x = "Context1", y = "Context2", title = "Terms in Space")
 
+
+
+
+# LDA BY ABDUL REHMAN (UNTESTED) - REFERENCED BY SAMPLE CODE PROVIDED
+
+#7: Latent Dirichlet Allocation (LDA) ----
+    install.packages("topicmodels")
+    library("topicmodels")
+    
+    install.packages("ldatuning")
+    library("ldatuning")
+    
+    #7.1 find ideal number of topics (leave this as a task) ----
+    result <- FindTopicsNumber(
+      dtm,
+      topics = seq(from = 2, to = 50, by = 1),
+      metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
+      method = "Gibbs",
+      control = list(seed = 77),
+      mc.cores = 2L,
+      verbose = TRUE
+    )
+    FindTopicsNumber_plot(result) #based on graph it should be 9 or 14
+    
+    #7.2 Create LDA Model ----
+    ?LDAcontrol
+    ldaResult <-LDA(dtm, 4, method="Gibbs", control=list(nstart=4, 
+                 seed = list(1,2,3,4), best=TRUE,  iter = 10))
+    
+    #7.3 Plotting Topics/Terms ----
+    ldaResult.terms <- as.matrix(terms(ldaResult, 10))
+    ldaResult.terms
+    
+    # Visualizing top 10 words with highest beta from each topic uinsg tidytext
+    lda.topics <- tidy(ldaResult,matrix = "beta")
+    top_terms <- lda.topics %>%
+      group_by(topic) %>%
+      top_n(10,beta) %>% 
+      ungroup() %>%
+      arrange(topic,-beta)
+    
+    plot_topic <- top_terms %>%
+      mutate(term = reorder_within(term, beta, topic)) %>%
+      ggplot(aes(term, beta, fill = factor(topic))) +
+      geom_col(show.legend = FALSE) +
+      facet_wrap(~ topic, scales = "free") +
+      coord_flip() +
+      scale_x_reordered()
+    plot_topic
+    
+    
+    #7.3 Plotting Topics/Document ----
+    lda.document <- tidy(ldaResult, matrix = "gamma")
+    lda.document
+    
+    top_terms <- lda.document %>%
+      group_by(topic) %>%
+      top_n(10,gamma) %>% 
+      ungroup() %>%
+      arrange(topic,-gamma)
+  
+    plot_topic <- top_terms %>%
+      mutate(term = reorder_within(document, gamma, topic)) %>%
+      ggplot(aes(document, gamma, fill = factor(topic))) +
+      geom_col(show.legend = FALSE) +
+      facet_wrap(~ topic, scales = "free") +
+      coord_flip() +
+      scale_x_reordered()
+    plot_topic
+  
+    #7.4 LDA Interactive Visualization ----
+    topicmodels2LDAvis <- function(x, ...){
+      post <- topicmodels::posterior(x)
+      if (ncol(post[["topics"]]) < 3) stop("The model must contain > 2 topics")
+      mat <- x@wordassignments
+      LDAvis::createJSON(
+        phi = post[["terms"]], 
+        theta = post[["topics"]],
+        vocab = colnames(post[["terms"]]),
+        doc.length = slam::row_sums(mat, na.rm = TRUE),
+        term.frequency = slam::col_sums(mat, na.rm = TRUE)
+      )
+    }
+    
+    install.packages("LDAvis")
+    library("LDAvis")
+    serVis(topicmodels2LDAvis(ldaResult))
+    
+    
+
