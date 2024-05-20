@@ -86,6 +86,16 @@ inspect(corpus)
 dtm <- DocumentTermMatrix(corpus, control = list(bounds = list(global = c(2, Inf))))
 inspect(dtm[1:20, ])
 
+#due to strong preprocessing, some of the rows in the dataframe have all 0s in the row
+#remove them using slam package
+
+install.packages("slam")
+library(slam)
+row_sums <- slam::row_sums(dtm, na.rm = TRUE)
+dtm <- dtm[row_sums > 0, ]
+
+inspect(dtm[1:20, ])
+
 ## create tf idf document term matrix
 
 tfidf <- DocumentTermMatrix(corpus, control = list(weighting = function(x) weightTfIdf(x, normalize = TRUE)))
